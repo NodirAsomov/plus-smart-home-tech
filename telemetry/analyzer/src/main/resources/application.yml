@@ -2,9 +2,9 @@ spring:
   main:
     web-application-type: none
   datasource:
-    url: jdbc:postgresql://localhost:5432/telemetry_analyzer
-    username: dbuser
-    password: 12345
+    url: jdbc:postgresql://localhost:${POSTGRES_PORT:5432}/telemetry_analyzer
+    username: ${POSTGRES_USER:dbuser}
+    password: ${POSTGRES_PASSWORD:12345}
   sql:
     init:
       mode: always
