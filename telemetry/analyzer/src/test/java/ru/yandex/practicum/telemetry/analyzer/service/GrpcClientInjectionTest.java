@@ -21,4 +21,11 @@ class GrpcClientInjectionTest {
     void shouldInjectHubRouterClientIntoSpringBean() {
         assertThat(ReflectionTestUtils.getField(evaluator, "hubRouter")).isNotNull();
     }
+
+    @Test
+    void shouldUseHubRouterMethodNameFromExternalContract() {
+        assertThat(ru.yandex.practicum.grpc.telemetry.hubrouter.HubRouterControllerGrpc
+                .getHandleDeviceActionMethod().getFullMethodName())
+                .isEqualTo("telemetry.service.hubrouter.HubRouterController/handleDeviceAction");
+    }
 }
