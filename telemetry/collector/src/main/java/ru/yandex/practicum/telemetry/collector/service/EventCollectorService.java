@@ -5,9 +5,9 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import ru.yandex.practicum.grpc.telemetry.event.HubEventProto;
+import ru.yandex.practicum.grpc.telemetry.event.SensorEventProto;
 import ru.yandex.practicum.telemetry.collector.mapper.EventMapper;
-import ru.yandex.practicum.telemetry.collector.model.hub.HubEvent;
-import ru.yandex.practicum.telemetry.collector.model.sensor.SensorEvent;
 
 @Service
 public class EventCollectorService {
@@ -25,11 +25,11 @@ public class EventCollectorService {
         this.hubTopic = hubTopic;
     }
 
-    public void collect(SensorEvent event) {
+    public void collect(SensorEventProto event) {
         producer.send(new ProducerRecord<>(sensorTopic, event.getHubId(), mapper.toAvro(event)));
     }
 
-    public void collect(HubEvent event) {
+    public void collect(HubEventProto event) {
         producer.send(new ProducerRecord<>(hubTopic, event.getHubId(), mapper.toAvro(event)));
     }
 }
