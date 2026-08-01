@@ -2,6 +2,8 @@ package ru.yandex.practicum.telemetry.analyzer.service;
 
 import com.google.protobuf.Timestamp;
 import net.devh.boot.grpc.client.inject.GrpcClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.grpc.telemetry.event.*;
 import ru.yandex.practicum.grpc.telemetry.hubrouter.HubRouterControllerGrpc;
@@ -10,9 +12,13 @@ import ru.yandex.practicum.telemetry.analyzer.model.*;
 import ru.yandex.practicum.telemetry.analyzer.model.Action;
 import ru.yandex.practicum.telemetry.analyzer.repository.ScenarioRepository;
 import java.time.Instant;
+import java.util.List;
 
 @Service
 public class ScenarioEvaluator {
+    private static final Logger log = LoggerFactory.getLogger(ScenarioEvaluator.class);
+    private static final int SCENARIO_LOOKUP_ATTEMPTS = 20;
+    private static final long SCENARIO_LOOKUP_DELAY_MS = 100;
     private final ScenarioRepository scenarios;
     private final HubRouterControllerGrpc.HubRouterControllerBlockingStub hubRouter;
     public ScenarioEvaluator(ScenarioRepository scenarios,
@@ -21,11 +27,32 @@ public class ScenarioEvaluator {
     }
 
     public void evaluate(SensorsSnapshotAvro snapshot) {
-        scenarios.findByHubId(snapshot.getHubId()).stream()
+        String hubId = snapshot.getHubId();
+        List<Scenario> hubScenarios = findScenarios(hubId);
+        log.info("Evaluating snapshot for hub {} against {} scenario(s)", hubId, hubScenarios.size());
+        hubScenarios.stream()
                 .filter(scenario -> scenario.getConditions().entrySet().stream()
                         .allMatch(entry -> matches(snapshot, entry.getKey(), entry.getValue())))
-                .forEach(scenario -> scenario.getActions().forEach((sensor, action) ->
-                        hubRouter.handleDeviceAction(request(snapshot.getHubId(), scenario, sensor, action))));
+                .forEach(scenario -> scenario.getActions().forEach((sensor, action) -> {
+                    DeviceActionRequest request = request(hubId, scenario, sensor, action);
+                    log.info("Sending action {} to device {} for scenario {} in hub {}",
+                            action.getType(), sensor.getId(), scenario.getName(), hubId);
+                    hubRouter.handleDeviceAction(request);
+                }));
+    }
+
+    private List<Scenario> findScenarios(String hubId) {
+        for (int attempt = 1; attempt <= SCENARIO_LOOKUP_ATTEMPTS; attempt++) {
+            List<Scenario> result = scenarios.findByHubId(hubId);
+            if (!result.isEmpty() || attempt == SCENARIO_LOOKUP_ATTEMPTS) return result;
+            try {
+                Thread.sleep(SCENARIO_LOOKUP_DELAY_MS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return List.of();
+            }
+        }
+        return List.of();
     }
 
     private boolean matches(SensorsSnapshotAvro snapshot, Sensor sensor, Condition condition) {

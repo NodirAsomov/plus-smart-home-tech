@@ -24,7 +24,14 @@ public class HubEventProcessor implements Runnable {
             consumer.subscribe(List.of(topic));
             while (true) {
                 ConsumerRecords<String, HubEventAvro> records = consumer.poll(Duration.ofMillis(500));
-                records.forEach(record -> service.handle(record.value()));
+                records.forEach(record -> {
+                    try {
+                        service.handle(record.value());
+                    } catch (Exception e) {
+                        log.error("Failed to handle hub event at partition {} offset {}",
+                                record.partition(), record.offset(), e);
+                    }
+                });
                 if (!records.isEmpty()) consumer.commitSync();
             }
         } catch (WakeupException ignored) { log.info("Hub event processor stopping"); }

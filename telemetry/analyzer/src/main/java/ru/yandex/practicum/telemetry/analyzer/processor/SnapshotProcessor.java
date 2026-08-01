@@ -24,7 +24,16 @@ public class SnapshotProcessor {
             consumer.subscribe(List.of(topic));
             while (true) {
                 ConsumerRecords<String, SensorsSnapshotAvro> records = consumer.poll(Duration.ofMillis(500));
-                records.forEach(record -> evaluator.evaluate(record.value()));
+                records.forEach(record -> {
+                    log.info("Received snapshot for hub {} at partition {} offset {}",
+                            record.value().getHubId(), record.partition(), record.offset());
+                    try {
+                        evaluator.evaluate(record.value());
+                    } catch (Exception e) {
+                        log.error("Failed to evaluate snapshot at partition {} offset {}",
+                                record.partition(), record.offset(), e);
+                    }
+                });
                 if (!records.isEmpty()) consumer.commitSync();
             }
         } catch (WakeupException ignored) { log.info("Snapshot processor stopping"); }

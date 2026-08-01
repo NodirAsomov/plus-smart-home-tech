@@ -2,6 +2,8 @@ package ru.yandex.practicum.telemetry.analyzer.service;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import ru.yandex.practicum.kafka.telemetry.event.*;
 import ru.yandex.practicum.telemetry.analyzer.model.Action;
 import ru.yandex.practicum.telemetry.analyzer.model.Condition;
@@ -13,6 +15,7 @@ import java.util.*;
 
 @Service
 public class HubEventService {
+    private static final Logger log = LoggerFactory.getLogger(HubEventService.class);
     private final SensorRepository sensors;
     private final ScenarioRepository scenarios;
     public HubEventService(SensorRepository sensors, ScenarioRepository scenarios) {
@@ -22,6 +25,7 @@ public class HubEventService {
     @Transactional
     public void handle(HubEventAvro event) {
         Object payload = event.getPayload();
+        log.info("Handling {} for hub {}", payload.getClass().getSimpleName(), event.getHubId());
         if (payload instanceof DeviceAddedEventAvro added) {
             sensors.findById(added.getId()).ifPresentOrElse(existing -> {
                 if (!existing.getHubId().equals(event.getHubId()))
@@ -53,6 +57,8 @@ public class HubEventService {
         }
         scenario.replace(conditions, actions);
         scenarios.save(scenario);
+        log.info("Stored scenario {} for hub {} with {} condition(s) and {} action(s)",
+                event.getName(), hubId, conditions.size(), actions.size());
     }
 
     private Sensor sensor(String id, String hubId) {
