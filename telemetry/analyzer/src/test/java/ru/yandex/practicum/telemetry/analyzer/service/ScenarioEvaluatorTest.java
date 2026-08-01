@@ -30,8 +30,9 @@ class ScenarioEvaluatorTest {
                 Map.of(heater, new Action(ActionTypeAvro.ACTIVATE, null)));
         when(repository.findByHubId("hub-1")).thenReturn(List.of(scenario));
 
+        Instant snapshotTimestamp = Instant.parse("2026-08-01T11:37:31.389Z");
         SensorsSnapshotAvro snapshot = SensorsSnapshotAvro.newBuilder()
-                .setHubId("hub-1").setTimestamp(Instant.now())
+                .setHubId("hub-1").setTimestamp(snapshotTimestamp)
                 .setSensorsState(Map.of("temperature-1", SensorStateAvro.newBuilder()
                         .setTimestamp(Instant.now()).setData(TemperatureSensorAvro.newBuilder()
                                 .setTemperatureC(10).setTemperatureF(50).build()).build()))
@@ -46,6 +47,8 @@ class ScenarioEvaluatorTest {
         assertThat(request.getValue().getAction().getSensorId()).isEqualTo("heater-1");
         assertThat(request.getValue().getAction().getType()).isEqualTo(ActionTypeProto.ACTIVATE);
         assertThat(request.getValue().getAction().hasValue()).isFalse();
+        assertThat(request.getValue().getTimestamp().getSeconds()).isEqualTo(snapshotTimestamp.getEpochSecond());
+        assertThat(request.getValue().getTimestamp().getNanos()).isEqualTo(snapshotTimestamp.getNano());
     }
 
     @Test

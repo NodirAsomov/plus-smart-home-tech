@@ -12,7 +12,6 @@ import ru.yandex.practicum.kafka.telemetry.event.*;
 import ru.yandex.practicum.telemetry.analyzer.model.*;
 import ru.yandex.practicum.telemetry.analyzer.model.Action;
 import ru.yandex.practicum.telemetry.analyzer.repository.ScenarioRepository;
-import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -36,7 +35,7 @@ public class ScenarioEvaluator {
                 .filter(scenario -> scenario.getConditions().entrySet().stream()
                         .allMatch(entry -> matches(snapshot, entry.getKey(), entry.getValue())))
                 .forEach(scenario -> scenario.getActions().forEach((sensor, action) -> {
-                    DeviceActionRequest request = request(hubId, scenario, sensor, action);
+                    DeviceActionRequest request = request(snapshot, scenario, sensor, action);
                     log.info("Sending action {} to device {} for scenario {} in hub {}",
                             action.getType(), sensor.getId(), scenario.getName(), hubId);
                     hubRouter.handleDeviceAction(request);
@@ -81,13 +80,13 @@ public class ScenarioEvaluator {
         };
     }
 
-    private DeviceActionRequest request(String hubId, Scenario scenario, Sensor sensor, Action action) {
+    private DeviceActionRequest request(SensorsSnapshotAvro snapshot, Scenario scenario, Sensor sensor, Action action) {
         DeviceActionProto.Builder actionBuilder = DeviceActionProto.newBuilder()
                 .setSensorId(sensor.getId()).setType(ActionTypeProto.valueOf(action.getType().name()));
         if (action.getValue() != null) actionBuilder.setValue(action.getValue());
-        Instant now = Instant.now();
-        return DeviceActionRequest.newBuilder().setHubId(hubId).setScenarioName(scenario.getName())
+        return DeviceActionRequest.newBuilder().setHubId(snapshot.getHubId()).setScenarioName(scenario.getName())
                 .setAction(actionBuilder).setTimestamp(Timestamp.newBuilder()
-                        .setSeconds(now.getEpochSecond()).setNanos(now.getNano())).build();
+                        .setSeconds(snapshot.getTimestamp().getEpochSecond())
+                        .setNanos(snapshot.getTimestamp().getNano())).build();
     }
 }
