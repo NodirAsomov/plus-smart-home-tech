@@ -5,6 +5,7 @@ import net.devh.boot.grpc.client.inject.GrpcClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import ru.yandex.practicum.grpc.telemetry.event.*;
 import ru.yandex.practicum.grpc.telemetry.hubrouter.HubRouterControllerGrpc;
 import ru.yandex.practicum.kafka.telemetry.event.*;
@@ -26,6 +27,7 @@ public class ScenarioEvaluator {
         this.scenarios = scenarios; this.hubRouter = hubRouter;
     }
 
+    @Transactional(readOnly = true)
     public void evaluate(SensorsSnapshotAvro snapshot) {
         String hubId = snapshot.getHubId();
         List<Scenario> hubScenarios = findScenarios(hubId);

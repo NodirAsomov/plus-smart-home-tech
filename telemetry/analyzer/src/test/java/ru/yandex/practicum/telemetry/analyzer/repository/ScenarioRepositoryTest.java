@@ -7,6 +7,9 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import ru.yandex.practicum.kafka.telemetry.event.*;
 import ru.yandex.practicum.telemetry.analyzer.model.*;
 import ru.yandex.practicum.telemetry.analyzer.model.Action;
+import ru.yandex.practicum.telemetry.analyzer.service.HubEventService;
+import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -19,6 +22,28 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ScenarioRepositoryTest {
     @Autowired SensorRepository sensors;
     @Autowired ScenarioRepository scenarios;
+
+    @Test
+    void shouldStoreScenarioFromRealHubEvents() {
+        HubEventService service = new HubEventService(sensors, scenarios);
+        service.handle(HubEventAvro.newBuilder().setHubId("hub-1").setTimestamp(Instant.now())
+                .setPayload(DeviceAddedEventAvro.newBuilder().setId("temperature-1")
+                        .setType(DeviceTypeAvro.TEMPERATURE_SENSOR).build()).build());
+        service.handle(HubEventAvro.newBuilder().setHubId("hub-1").setTimestamp(Instant.now())
+                .setPayload(DeviceAddedEventAvro.newBuilder().setId("heater-1")
+                        .setType(DeviceTypeAvro.SWITCH_SENSOR).build()).build());
+        service.handle(HubEventAvro.newBuilder().setHubId("hub-1").setTimestamp(Instant.now())
+                .setPayload(ScenarioAddedEventAvro.newBuilder().setName("heating")
+                        .setConditions(List.of(ScenarioConditionAvro.newBuilder()
+                                .setSensorId("temperature-1").setType(ConditionTypeAvro.TEMPERATURE)
+                                .setOperation(ConditionOperationAvro.LOWER_THAN).setValue(15).build()))
+                        .setActions(List.of(DeviceActionAvro.newBuilder().setSensorId("heater-1")
+                                .setType(ActionTypeAvro.ACTIVATE).setValue(null).build())).build()).build());
+
+        Scenario loaded = scenarios.findByHubId("hub-1").getFirst();
+        assertThat(loaded.getConditions()).hasSize(1);
+        assertThat(loaded.getActions()).hasSize(1);
+    }
 
     @Test
     void shouldStoreAndLoadConditionsAndActionsWithTheirSensors() {
