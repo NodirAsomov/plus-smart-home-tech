@@ -38,7 +38,9 @@ class ScenarioEvaluatorTest {
                                 .setTemperatureC(10).setTemperatureF(50).build()).build()))
                 .build();
 
-        new ScenarioEvaluator(repository, client).evaluate(snapshot);
+        ScenarioEvaluator evaluator = new ScenarioEvaluator(repository);
+        evaluator.setHubRouter(client);
+        evaluator.evaluate(snapshot);
 
         ArgumentCaptor<DeviceActionRequest> request = ArgumentCaptor.forClass(DeviceActionRequest.class);
         verify(client).handleDeviceAction(request.capture());
@@ -68,7 +70,9 @@ class ScenarioEvaluatorTest {
                         .setTimestamp(Instant.now()).setData(SwitchSensorAvro.newBuilder().setState(true).build()).build()))
                 .build();
 
-        new ScenarioEvaluator(repository, client).evaluate(snapshot);
+        ScenarioEvaluator evaluator = new ScenarioEvaluator(repository);
+        evaluator.setHubRouter(client);
+        evaluator.evaluate(snapshot);
 
         verifyNoInteractions(client);
     }

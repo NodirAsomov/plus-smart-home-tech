@@ -20,10 +20,16 @@ public class ScenarioEvaluator {
     private static final int SCENARIO_LOOKUP_ATTEMPTS = 20;
     private static final long SCENARIO_LOOKUP_DELAY_MS = 100;
     private final ScenarioRepository scenarios;
-    private final HubRouterControllerGrpc.HubRouterControllerBlockingStub hubRouter;
-    public ScenarioEvaluator(ScenarioRepository scenarios,
-            @GrpcClient("hub-router") HubRouterControllerGrpc.HubRouterControllerBlockingStub hubRouter) {
-        this.scenarios = scenarios; this.hubRouter = hubRouter;
+
+    @GrpcClient("hub-router")
+    private HubRouterControllerGrpc.HubRouterControllerBlockingStub hubRouter;
+
+    public ScenarioEvaluator(ScenarioRepository scenarios) {
+        this.scenarios = scenarios;
+    }
+
+    void setHubRouter(HubRouterControllerGrpc.HubRouterControllerBlockingStub hubRouter) {
+        this.hubRouter = hubRouter;
     }
 
     @Transactional(readOnly = true)
