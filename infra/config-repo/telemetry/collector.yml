@@ -1,0 +1,13 @@
+grpc:
+  server:
+    port: 59091
+
+collector:
+  kafka:
+    bootstrap-servers: localhost:9092
+    sensor-topic: telemetry.sensors.v1
+    hub-topic: telemetry.hubs.v1
+
+spring:
+  main:
+    web-application-type: none
