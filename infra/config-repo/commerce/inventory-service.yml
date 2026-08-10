@@ -1,0 +1,15 @@
+server:
+  port: 0
+
+spring:
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://localhost:${POSTGRES_PORT:5432}/inventory_db
+    username: ${POSTGRES_USER:dbuser}
+    password: ${POSTGRES_PASSWORD:12345}
+  jpa:
+    hibernate:
+      ddl-auto: update
+  sql:
+    init:
+      mode: never
