@@ -1,67 +1,121 @@
 package ru.yandex.practicum.telemetry.collector.mapper;
 
 import org.springframework.stereotype.Component;
-import ru.yandex.practicum.kafka.telemetry.event.*;
-import ru.yandex.practicum.telemetry.collector.model.hub.*;
-import ru.yandex.practicum.telemetry.collector.model.sensor.*;
+import ru.yandex.practicum.grpc.telemetry.event.DeviceActionProto;
+import ru.yandex.practicum.grpc.telemetry.event.HubEventProto;
+import ru.yandex.practicum.grpc.telemetry.event.ScenarioConditionProto;
+import ru.yandex.practicum.grpc.telemetry.event.SensorEventProto;
+import ru.yandex.practicum.kafka.telemetry.event.ActionTypeAvro;
+import ru.yandex.practicum.kafka.telemetry.event.ClimateSensorAvro;
+import ru.yandex.practicum.kafka.telemetry.event.ConditionOperationAvro;
+import ru.yandex.practicum.kafka.telemetry.event.ConditionTypeAvro;
+import ru.yandex.practicum.kafka.telemetry.event.DeviceActionAvro;
+import ru.yandex.practicum.kafka.telemetry.event.DeviceAddedEventAvro;
+import ru.yandex.practicum.kafka.telemetry.event.DeviceRemovedEventAvro;
+import ru.yandex.practicum.kafka.telemetry.event.DeviceTypeAvro;
+import ru.yandex.practicum.kafka.telemetry.event.HubEventAvro;
+import ru.yandex.practicum.kafka.telemetry.event.LightSensorAvro;
+import ru.yandex.practicum.kafka.telemetry.event.MotionSensorAvro;
+import ru.yandex.practicum.kafka.telemetry.event.ScenarioAddedEventAvro;
+import ru.yandex.practicum.kafka.telemetry.event.ScenarioConditionAvro;
+import ru.yandex.practicum.kafka.telemetry.event.ScenarioRemovedEventAvro;
+import ru.yandex.practicum.kafka.telemetry.event.SensorEventAvro;
+import ru.yandex.practicum.kafka.telemetry.event.SwitchSensorAvro;
+import ru.yandex.practicum.kafka.telemetry.event.TemperatureSensorAvro;
 
-import java.util.stream.Collectors;
+import java.time.Instant;
 
 @Component
 public class EventMapper {
-    public SensorEventAvro toAvro(SensorEvent event) {
-        Object payload;
-        if (event instanceof ClimateSensorEvent e) {
-            payload = ClimateSensorAvro.newBuilder().setTemperatureC(e.getTemperatureC())
-                    .setHumidity(e.getHumidity()).setCo2Level(e.getCo2Level()).build();
-        } else if (event instanceof LightSensorEvent e) {
-            payload = LightSensorAvro.newBuilder().setLinkQuality(e.getLinkQuality())
-                    .setLuminosity(e.getLuminosity()).build();
-        } else if (event instanceof MotionSensorEvent e) {
-            payload = MotionSensorAvro.newBuilder().setLinkQuality(e.getLinkQuality())
-                    .setMotion(e.isMotion()).setVoltage(e.getVoltage()).build();
-        } else if (event instanceof SwitchSensorEvent e) {
-            payload = SwitchSensorAvro.newBuilder().setState(e.isState()).build();
-        } else if (event instanceof TemperatureSensorEvent e) {
-            payload = TemperatureSensorAvro.newBuilder().setTemperatureC(e.getTemperatureC())
-                    .setTemperatureF(e.getTemperatureF()).build();
-        } else {
-            throw new IllegalArgumentException("Unsupported sensor event: " + event.getClass());
-        }
-        return SensorEventAvro.newBuilder().setId(event.getId()).setHubId(event.getHubId())
-                .setTimestamp(event.getTimestamp()).setPayload(payload).build();
+    public SensorEventAvro toAvro(SensorEventProto event) {
+        Object payload = switch (event.getPayloadCase()) {
+            case CLIMATE_SENSOR -> ClimateSensorAvro.newBuilder()
+                    .setTemperatureC(event.getClimateSensor().getTemperatureC())
+                    .setHumidity(event.getClimateSensor().getHumidity())
+                    .setCo2Level(event.getClimateSensor().getCo2Level())
+                    .build();
+            case LIGHT_SENSOR -> LightSensorAvro.newBuilder()
+                    .setLinkQuality(event.getLightSensor().getLinkQuality())
+                    .setLuminosity(event.getLightSensor().getLuminosity())
+                    .build();
+            case MOTION_SENSOR -> MotionSensorAvro.newBuilder()
+                    .setLinkQuality(event.getMotionSensor().getLinkQuality())
+                    .setMotion(event.getMotionSensor().getMotion())
+                    .setVoltage(event.getMotionSensor().getVoltage())
+                    .build();
+            case SWITCH_SENSOR -> SwitchSensorAvro.newBuilder()
+                    .setState(event.getSwitchSensor().getState())
+                    .build();
+            case TEMPERATURE_SENSOR -> TemperatureSensorAvro.newBuilder()
+                    .setTemperatureC(event.getTemperatureSensor().getTemperatureC())
+                    .setTemperatureF(event.getTemperatureSensor().getTemperatureF())
+                    .build();
+            case PAYLOAD_NOT_SET -> throw new IllegalArgumentException("Sensor event payload is not set");
+        };
+
+        return SensorEventAvro.newBuilder()
+                .setId(event.getId())
+                .setHubId(event.getHubId())
+                .setTimestamp(toInstant(event.getTimestamp()))
+                .setPayload(payload)
+                .build();
     }
 
-    public HubEventAvro toAvro(HubEvent event) {
-        Object payload;
-        if (event instanceof DeviceAddedEvent e) {
-            payload = DeviceAddedEventAvro.newBuilder().setId(e.getId())
-                    .setType(DeviceTypeAvro.valueOf(e.getDeviceType().name())).build();
-        } else if (event instanceof DeviceRemovedEvent e) {
-            payload = DeviceRemovedEventAvro.newBuilder().setId(e.getId()).build();
-        } else if (event instanceof ScenarioAddedEvent e) {
-            payload = ScenarioAddedEventAvro.newBuilder().setName(e.getName())
-                    .setConditions(e.getConditions().stream().map(this::toAvro).collect(Collectors.toList()))
-                    .setActions(e.getActions().stream().map(this::toAvro).collect(Collectors.toList())).build();
-        } else if (event instanceof ScenarioRemovedEvent e) {
-            payload = ScenarioRemovedEventAvro.newBuilder().setName(e.getName()).build();
-        } else {
-            throw new IllegalArgumentException("Unsupported hub event: " + event.getClass());
-        }
-        return HubEventAvro.newBuilder().setHubId(event.getHubId())
-                .setTimestamp(event.getTimestamp()).setPayload(payload).build();
+    public HubEventAvro toAvro(HubEventProto event) {
+        Object payload = switch (event.getPayloadCase()) {
+            case DEVICE_ADDED -> DeviceAddedEventAvro.newBuilder()
+                    .setId(event.getDeviceAdded().getId())
+                    .setType(DeviceTypeAvro.valueOf(event.getDeviceAdded().getType().name()))
+                    .build();
+            case DEVICE_REMOVED -> DeviceRemovedEventAvro.newBuilder()
+                    .setId(event.getDeviceRemoved().getId())
+                    .build();
+            case SCENARIO_ADDED -> ScenarioAddedEventAvro.newBuilder()
+                    .setName(event.getScenarioAdded().getName())
+                    .setConditions(event.getScenarioAdded().getConditionList().stream()
+                            .map(this::toAvro)
+                            .toList())
+                    .setActions(event.getScenarioAdded().getActionList().stream()
+                            .map(this::toAvro)
+                            .toList())
+                    .build();
+            case SCENARIO_REMOVED -> ScenarioRemovedEventAvro.newBuilder()
+                    .setName(event.getScenarioRemoved().getName())
+                    .build();
+            case PAYLOAD_NOT_SET -> throw new IllegalArgumentException("Hub event payload is not set");
+        };
+
+        return HubEventAvro.newBuilder()
+                .setHubId(event.getHubId())
+                .setTimestamp(toInstant(event.getTimestamp()))
+                .setPayload(payload)
+                .build();
     }
 
-    private ScenarioConditionAvro toAvro(ScenarioCondition condition) {
-        return ScenarioConditionAvro.newBuilder().setSensorId(condition.getSensorId())
+    private ScenarioConditionAvro toAvro(ScenarioConditionProto condition) {
+        Object value = switch (condition.getValueCase()) {
+            case BOOL_VALUE -> condition.getBoolValue();
+            case INT_VALUE -> condition.getIntValue();
+            case VALUE_NOT_SET -> throw new IllegalArgumentException("Scenario condition value is not set");
+        };
+
+        return ScenarioConditionAvro.newBuilder()
+                .setSensorId(condition.getSensorId())
                 .setType(ConditionTypeAvro.valueOf(condition.getType().name()))
                 .setOperation(ConditionOperationAvro.valueOf(condition.getOperation().name()))
-                .setValue(condition.getValue()).build();
+                .setValue(value)
+                .build();
     }
 
-    private DeviceActionAvro toAvro(DeviceAction action) {
-        return DeviceActionAvro.newBuilder().setSensorId(action.getSensorId())
+    private DeviceActionAvro toAvro(DeviceActionProto action) {
+        return DeviceActionAvro.newBuilder()
+                .setSensorId(action.getSensorId())
                 .setType(ActionTypeAvro.valueOf(action.getType().name()))
-                .setValue(action.getValue()).build();
+                .setValue(action.hasValue() ? action.getValue() : null)
+                .build();
+    }
+
+    private Instant toInstant(com.google.protobuf.Timestamp timestamp) {
+        return Instant.ofEpochSecond(timestamp.getSeconds(), timestamp.getNanos());
     }
 }
