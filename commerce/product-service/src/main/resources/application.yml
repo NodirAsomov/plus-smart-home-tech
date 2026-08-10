@@ -1,5 +1,5 @@
 spring:
   application:
-    name: grpc-server
+    name: product-service
   config:
     import: configserver:http://localhost:8888
