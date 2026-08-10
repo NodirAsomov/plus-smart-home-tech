@@ -1,3 +1,5 @@
-grpc:
-  server:
-    port: 9090
+spring:
+  application:
+    name: grpc-server
+  config:
+    import: configserver:http://localhost:8888
