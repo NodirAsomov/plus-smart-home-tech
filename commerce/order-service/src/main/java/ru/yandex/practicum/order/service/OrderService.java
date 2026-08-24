@@ -10,6 +10,7 @@ import ru.yandex.practicum.order.dto.*;
 import ru.yandex.practicum.order.entity.*;
 import ru.yandex.practicum.order.exception.*;
 import ru.yandex.practicum.order.repository.OrderRepository;
+import java.math.BigDecimal;
 import java.util.*;
 
 @Service
@@ -27,19 +28,37 @@ public class OrderService {
         Map<Long,Integer> quantities = new LinkedHashMap<>();
         request.items().forEach(i -> quantities.merge(i.productId(), i.quantity(), Integer::sum));
         Map<Long,ProductResponse> products = new LinkedHashMap<>();
+        List<String> degradationReasons = new ArrayList<>();
         quantities.keySet().forEach(id -> {
-            ProductResponse p = product(id);
-            if (!Boolean.TRUE.equals(p.active())) throw new OrderProcessingException("Product " + id + " is not available for sale");
-            products.put(id, p);
+            try {
+                ProductResponse p = product(id);
+                if (!Boolean.TRUE.equals(p.active())) throw new OrderProcessingException("Product " + id + " is not available for sale");
+                products.put(id, p);
+            } catch (ProductServiceUnavailableException e) {
+                log.warn("Order will require manual confirmation: {}", e.getMessage());
+                products.put(id, new ProductResponse(id, "Товар #" + id + " (ожидает проверки)", BigDecimal.ZERO, true));
+                degradationReasons.add("Не удалось проверить данные товара " + id);
+            }
         });
         Map<Long,Integer> reserved = new LinkedHashMap<>();
         try {
-            quantities.forEach((id, qty) -> { reserve(id, qty); reserved.put(id, qty); });
+            quantities.forEach((id, qty) -> {
+                try {
+                    reserve(id, qty);
+                    reserved.put(id, qty);
+                } catch (InventoryServiceUnavailableException e) {
+                    log.warn("Order will require manual confirmation: {}", e.getMessage());
+                    degradationReasons.add("Не удалось подтвердить резерв товара " + id);
+                }
+            });
             Order order = new Order(request.customerName(), request.customerEmail());
             request.items().forEach(i -> {
                 ProductResponse p = products.get(i.productId());
                 order.addItem(new OrderItem(p.id(), p.name(), i.quantity(), p.price()));
             });
+            if (!degradationReasons.isEmpty()) {
+                order.markPendingConfirmation("Заказ требует ручной проверки: " + String.join("; ", degradationReasons));
+            }
             return persistenceService.save(order);
         } catch (OrderProcessingException e) { compensate(reserved); throw e; }
         catch (RuntimeException e) { compensate(reserved); throw new OrderProcessingException("Unable to complete order processing", e); }
@@ -50,7 +69,8 @@ public class OrderService {
             if (p == null) throw new OrderProcessingException("Product " + id + " was not found");
             return p;
         } catch (FeignException.NotFound e) { throw new OrderProcessingException("Product " + id + " was not found", e); }
-        catch (FeignException e) { throw new OrderProcessingException("Unable to obtain product " + id, e); }
+        catch (ProductServiceUnavailableException e) { throw e; }
+        catch (FeignException e) { throw new ProductServiceUnavailableException(id, e); }
     }
     private void reserve(Long id, Integer qty) {
         try {
@@ -58,7 +78,8 @@ public class OrderService {
             if (response == null || !response.success()) throw new OrderProcessingException("Inventory service rejected reservation for product " + id);
         } catch (FeignException.NotFound e) { throw new OrderProcessingException("Inventory record for product " + id + " was not found", e); }
         catch (FeignException.Conflict e) { throw new OrderProcessingException("Insufficient stock for product " + id, e); }
-        catch (FeignException e) { throw new OrderProcessingException("Unable to reserve product " + id, e); }
+        catch (InventoryServiceUnavailableException e) { throw e; }
+        catch (FeignException e) { throw new InventoryServiceUnavailableException("reserving", id, e); }
     }
     private void compensate(Map<Long,Integer> reserved) {
         reserved.forEach((id, qty) -> { try { inventoryClient.release(new InventoryRequest(id, qty)); }
