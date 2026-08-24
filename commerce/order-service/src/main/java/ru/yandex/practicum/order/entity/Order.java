@@ -31,6 +31,10 @@ public class Order {
         this.status = "CONFIRMED"; this.createdAt = LocalDateTime.now(); this.totalPrice = BigDecimal.ZERO;
     }
     public void addItem(OrderItem item) { items.add(item); item.attach(this); totalPrice = totalPrice.add(item.lineTotal()); }
+    public void markPendingConfirmation(String details) {
+        this.status = "PENDING_CONFIRMATION";
+        this.statusDetails = details;
+    }
     public Long getId() { return id; }
     public String getCustomerName() { return customerName; }
     public String getCustomerEmail() { return customerEmail; }
