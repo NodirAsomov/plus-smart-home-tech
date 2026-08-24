@@ -28,4 +28,8 @@ public class Inventory {
         this.quantity = quantity;
     }
     public void reserve(int requested) { this.reservedQuantity += requested; }
+    public void release(int requested) {
+        if (requested > reservedQuantity) throw new IllegalArgumentException("Cannot release more than reserved quantity");
+        this.reservedQuantity -= requested;
+    }
 }

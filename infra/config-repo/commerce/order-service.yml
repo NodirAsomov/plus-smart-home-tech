@@ -2,6 +2,18 @@ server:
   port: 0
 
 spring:
+  cloud:
+    openfeign:
+      circuitbreaker:
+        enabled: true
+      client:
+        config:
+          default:
+            connectTimeout: 2000
+            readTimeout: 3000
+          inventory-service:
+            connectTimeout: 1000
+            readTimeout: 2000
   datasource:
     driver-class-name: org.postgresql.Driver
     url: jdbc:postgresql://localhost:${POSTGRES_PORT:5432}/order_db
@@ -13,3 +25,25 @@ spring:
   sql:
     init:
       mode: never
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-size: 5
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        ignore-exceptions:
+          - feign.FeignException$BadRequest
+          - feign.FeignException$NotFound
+          - feign.FeignException$Conflict
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 3s
+
+logging:
+  level:
+    ru.yandex.practicum.order.client.ProductClient: DEBUG

@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: api-gateway-test
+  cloud:
+    config:
+      enabled: false
+    discovery:
+      enabled: false
+    gateway:
+      enabled: false
+
+eureka:
+  client:
+    enabled: false
+
+app:
+  security:
+    users:
+      - username: ivan
+        password: ivan
+        roles: [USER]
+      - username: anna
+        password: anna
+        roles: [USER, ADMIN]
