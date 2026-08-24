@@ -33,6 +33,12 @@ public class InventoryService {
         repository.flush();
         return new ReserveResponse(true, inventory.getAvailableQuantity(), "Product reserved successfully");
     }
+    @Transactional public ReserveResponse release(ReserveRequest request) {
+        Inventory inventory = get(request.productId());
+        inventory.release(request.quantity());
+        repository.flush();
+        return new ReserveResponse(true, inventory.getAvailableQuantity(), "Product reservation released successfully");
+    }
     private Inventory get(Long productId) { return repository.findByProductId(productId).orElseThrow(() -> new NotFoundException("Inventory not found for product: " + productId)); }
     private InventoryDto toDto(Inventory i) { return new InventoryDto(i.getId(), i.getProductId(), i.getQuantity(), i.getReservedQuantity(), i.getAvailableQuantity()); }
 }
