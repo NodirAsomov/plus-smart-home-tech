@@ -25,7 +25,7 @@ public class OrderItem {
         this.productId = productId; this.productName = productName; this.quantity = quantity; this.price = price;
     }
     void attach(Order order) { this.order = order; }
-    BigDecimal lineTotal() { return price.multiply(BigDecimal.valueOf(quantity)); }
+    public BigDecimal lineTotal() { return price.multiply(BigDecimal.valueOf(quantity)); }
     public Long getId() { return id; }
     public Long getProductId() { return productId; }
     public String getProductName() { return productName; }
