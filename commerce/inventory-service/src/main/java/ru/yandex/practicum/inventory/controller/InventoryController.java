@@ -14,4 +14,5 @@ public class InventoryController {
     @PostMapping @ResponseStatus(HttpStatus.CREATED) public InventoryDto create(@Valid @RequestBody UpdateInventoryRequest request) { return service.create(request); }
     @PutMapping public InventoryDto update(@Valid @RequestBody UpdateInventoryRequest request) { return service.update(request); }
     @PostMapping("/reserve") public ReserveResponse reserve(@Valid @RequestBody ReserveRequest request) { return service.reserve(request); }
+    @PostMapping("/release") public ReserveResponse release(@Valid @RequestBody ReserveRequest request) { return service.release(request); }
 }

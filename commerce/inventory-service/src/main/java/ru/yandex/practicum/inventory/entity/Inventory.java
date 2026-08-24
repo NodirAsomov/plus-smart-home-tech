@@ -28,4 +28,11 @@ public class Inventory {
         this.quantity = quantity;
     }
     public void reserve(int requested) { this.reservedQuantity += requested; }
+    public void release(int requested) {
+        if (requested > reservedQuantity) {
+            throw new IllegalArgumentException("Cannot release " + requested
+                    + " units; only " + reservedQuantity + " reserved for product " + productId);
+        }
+        this.reservedQuantity -= requested;
+    }
 }
